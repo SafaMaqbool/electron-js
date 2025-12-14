@@ -15,19 +15,32 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
 
   const login = async () => {
-    // 1. Generate PKCE pair
-    const { codeVerifier, codeChallenge } = await generatePKCEPair();
+    try {
+      // 1. Generate PKCE pair
+      const { codeVerifier, codeChallenge } = await generatePKCEPair();
 
-    // 2. Call Electron main process to open Google login
-    const result = await window.api.startGoogleLogin(
-      codeVerifier,
-      codeChallenge
-    );
+      // Debug logs to make sure they exist
+      console.log("PKCE codeVerifier:", codeVerifier);
+      console.log("PKCE codeChallenge:", codeChallenge);
 
-    // 3. For now, just log result (backend token will come later)
-    console.log(result);
-    setToken(result.access_token || null);
+      if (!codeChallenge) {
+        console.error("PKCE codeChallenge is undefined!");
+        return;
+      }
+
+      // 2. Call Electron main process to open Google login
+      const result = await window.api.startGoogleLogin(
+        codeVerifier,
+        codeChallenge
+      );
+
+      console.log("Login result:", result);
+      setToken(result.access_token || null);
+    } catch (err) {
+      console.error("Login failed:", err);
+    }
   };
+
 
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>

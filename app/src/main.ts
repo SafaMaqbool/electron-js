@@ -1,6 +1,9 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import { ipcMain, shell } from "electron";
+import axios from "axios";
+import * as url from "url";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -54,16 +57,62 @@ app.on('activate', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
-import { ipcMain, shell } from "electron";
+
 
 ipcMain.handle(
   "google-login",
   async (event, { codeVerifier, codeChallenge }) => {
-    // Open system browser with Google OAuth URL including codeChallenge
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=...&code_challenge=${codeChallenge}&...`;
-    await shell.openExternal(authUrl);
+    try {
+      // 1. Get OAuth URL from backend
+      const res = await axios.get("http://localhost:4000/auth/google", {
+        params: { code_challenge: codeChallenge },
+      });
+      const authUrl = res.data.authUrl;
 
-    // Later, exchange code from backend for token
-    return { access_token: "dummy-token-for-now" };
+      // 2. Open visible BrowserWindow to handle login
+      const loginWindow = new BrowserWindow({
+        width: 500,
+        height: 700,
+        show: true,
+        webPreferences: { nodeIntegration: false },
+      });
+
+      return new Promise((resolve, reject) => {
+        loginWindow.webContents.on("did-navigate", async (event, newUrl) => {
+          const parsedUrl = new URL(newUrl);
+
+          // 3. Check if Google redirected to our backend callback
+          if (
+            parsedUrl.origin === "http://localhost:4000" &&
+            parsedUrl.pathname === "/oauth2callback"
+          ) {
+            const code = parsedUrl.searchParams.get("code");
+            loginWindow.close();
+            if (!code) return reject("No code received");
+
+            try {
+              // 4. Exchange code for token via backend
+              const tokenRes = await axios.get(
+                "http://localhost:4000/oauth2callback",
+                {
+                  params: { code, code_verifier: codeVerifier },
+                }
+              );
+
+              resolve(tokenRes.data); // This is the real access_token
+            } catch (err) {
+              reject(err);
+            }
+          }
+        });
+
+        // 5. Load Google login
+        loginWindow.loadURL(authUrl);
+      });
+    } catch (err) {
+      console.error(err);
+      return { access_token: null };
+    }
   }
 );
+

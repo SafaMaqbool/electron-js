@@ -43,6 +43,7 @@
     "electron-oauth2": "^3.0.0",
     "electron-squirrel-startup": "^1.0.1",
     "google-auth-library": "^10.5.0",
+    "open": "^11.0.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   }
