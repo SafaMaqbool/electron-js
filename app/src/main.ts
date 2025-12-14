@@ -54,3 +54,16 @@ app.on('activate', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
+import { ipcMain, shell } from "electron";
+
+ipcMain.handle(
+  "google-login",
+  async (event, { codeVerifier, codeChallenge }) => {
+    // Open system browser with Google OAuth URL including codeChallenge
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=...&code_challenge=${codeChallenge}&...`;
+    await shell.openExternal(authUrl);
+
+    // Later, exchange code from backend for token
+    return { access_token: "dummy-token-for-now" };
+  }
+);
