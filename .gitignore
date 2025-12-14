@@ -1,0 +1,16 @@
+# node
+node_modules/
+*/node_modules/
+
+# build outputs
+dist/
+out/
+*/dist/
+*/out/
+
+# env
+.env
+*/.env
+
+# logs
+npm-debug.log*
