@@ -199,3 +199,23 @@ ipcMain.handle("get-access-token", async () => {
 
   return accessToken;
 });
+
+ipcMain.handle("fetch-google-profile", async () => {
+  const accessToken = await keytar.getPassword(
+    "ElectronGoogleOAuthApp",
+    "google-access-token"
+  );
+  if (!accessToken) return null;
+
+  try {
+    const res = await axios.get(
+      "https://www.googleapis.com/oauth2/v2/userinfo",
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return res.data;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+});
+

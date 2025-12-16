@@ -11,12 +11,21 @@ declare global {
       logout: () => Promise<boolean>;
       isLoggedIn: () => Promise<boolean>;
       getAccessToken: () => Promise<string>;
+      getProfile: () => Promise<any>;
     };
   }
 }
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      window.api.getProfile().then(setProfile);
+    }
+  }, [isLoggedIn]);
 
   useEffect(() => {
     window.api.isLoggedIn().then(setIsLoggedIn);
@@ -44,10 +53,16 @@ export default function App() {
       <h1>Electron Google OAuth PKCE Demo</h1>
 
       {isLoggedIn ? (
-        <>
-          <p>Logged in</p>
-          <button onClick={logout}>Logout</button>
-        </>
+        profile ? (
+          <div>
+            <img src={profile.picture} alt="avatar" width={100} />
+            <h2>{profile.name}</h2>
+            <p>{profile.email}</p>
+            <button onClick={logout}>Logout</button>
+          </div>
+        ) : (
+          <p>Loading profile...</p>
+        )
       ) : (
         <button onClick={login}>Login with Google</button>
       )}

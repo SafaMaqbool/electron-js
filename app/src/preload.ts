@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld("api", {
   isLoggedIn: () => ipcRenderer.invoke("is-logged-in"),
 
   getAccessToken: () => ipcRenderer.invoke("get-access-token"),
+  getProfile: () => ipcRenderer.invoke("fetch-google-profile"),
 });
