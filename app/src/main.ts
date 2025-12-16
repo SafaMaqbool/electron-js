@@ -94,13 +94,13 @@ ipcMain.handle(
   "google-login",
   async (event, { codeVerifier, codeChallenge }) => {
     try {
-      // 1. Get OAuth URL from backend
+      // Get OAuth URL from backend
       const res = await axios.get("http://localhost:4000/auth/google", {
         params: { code_challenge: codeChallenge },
       });
       const authUrl = res.data.authUrl;
 
-      // 2. Open visible BrowserWindow to handle login
+      //  Open visible BrowserWindow to handle login
       const loginWindow = new BrowserWindow({
         width: 500,
         height: 700,
@@ -112,7 +112,7 @@ ipcMain.handle(
         loginWindow.webContents.on("did-navigate", async (event, newUrl) => {
           const parsedUrl = new URL(newUrl);
 
-          // 3. Check if Google redirected to our backend callback
+          //  Check if Google redirected to our backend callback
           if (
             parsedUrl.origin === "http://localhost:4000" &&
             parsedUrl.pathname === "/oauth2callback"
@@ -148,7 +148,7 @@ ipcMain.handle(
           }
         });
 
-        // 5. Load Google login
+        // Load Google login
         loginWindow.loadURL(authUrl);
       });
     } catch (err) {
