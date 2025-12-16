@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { generatePKCEPair } from "./utils/pkce";
+
 declare global {
   interface Window {
     api: {
@@ -7,46 +8,46 @@ declare global {
         codeVerifier: string,
         codeChallenge: string
       ) => Promise<any>;
+      logout: () => Promise<boolean>;
+      isLoggedIn: () => Promise<boolean>;
+      getAccessToken: () => Promise<string>;
     };
   }
 }
 
 export default function App() {
-  const [token, setToken] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    window.api.isLoggedIn().then(setIsLoggedIn);
+  }, []);
 
   const login = async () => {
-    try {
-      // 1. Generate PKCE pair
-      const { codeVerifier, codeChallenge } = await generatePKCEPair();
+    const { codeVerifier, codeChallenge } = await generatePKCEPair();
+    const result = await window.api.startGoogleLogin(
+      codeVerifier,
+      codeChallenge
+    );
 
-      // Debug logs to make sure they exist
-      console.log("PKCE codeVerifier:", codeVerifier);
-      console.log("PKCE codeChallenge:", codeChallenge);
-
-      if (!codeChallenge) {
-        console.error("PKCE codeChallenge is undefined!");
-        return;
-      }
-
-      // 2. Call Electron main process to open Google login
-      const result = await window.api.startGoogleLogin(
-        codeVerifier,
-        codeChallenge
-      );
-
-      console.log("Login result:", result);
-      setToken(result.access_token || null);
-    } catch (err) {
-      console.error("Login failed:", err);
+    if (result?.access_token) {
+      setIsLoggedIn(true);
     }
   };
 
+  const logout = async () => {
+    await window.api.logout();
+    setIsLoggedIn(false);
+  };
 
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       <h1>Electron Google OAuth PKCE Demo</h1>
-      {token ? (
-        <p>Logged in! Token: {token}</p>
+
+      {isLoggedIn ? (
+        <>
+          <p>Logged in</p>
+          <button onClick={logout}>Logout</button>
+        </>
       ) : (
         <button onClick={login}>Login with Google</button>
       )}

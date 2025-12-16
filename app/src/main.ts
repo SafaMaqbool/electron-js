@@ -4,6 +4,8 @@ import started from 'electron-squirrel-startup';
 import { ipcMain, shell } from "electron";
 import axios from "axios";
 import * as url from "url";
+import keytar from "keytar";
+
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -58,6 +60,35 @@ app.on('activate', () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 
+async function refreshAccessToken() {
+  const refreshToken = await keytar.getPassword(
+    "ElectronGoogleOAuthApp",
+    "google-refresh-token"
+  );
+  if (!refreshToken) throw new Error("No refresh token available");
+
+  const res = await axios.get("http://localhost:4000/refresh-token", {
+    params: { refresh_token: refreshToken },
+  });
+
+  const newAccessToken = res.data.access_token;
+  // Save the new access token
+  await keytar.setPassword(
+    "ElectronGoogleOAuthApp",
+    "google-access-token",
+    newAccessToken
+  );
+  return newAccessToken;
+}
+
+async function getAccessToken() {
+  return await keytar.getPassword(
+    "ElectronGoogleOAuthApp",
+    "google-access-token"
+  );
+}
+
+
 
 ipcMain.handle(
   "google-login",
@@ -91,15 +122,26 @@ ipcMain.handle(
             if (!code) return reject("No code received");
 
             try {
-              // 4. Exchange code for token via backend
+              //Exchange code for token via backend
               const tokenRes = await axios.get(
                 "http://localhost:4000/oauth2callback",
                 {
                   params: { code, code_verifier: codeVerifier },
                 }
               );
+              // Save tokens in OS keychain
+              await keytar.setPassword(
+                "ElectronGoogleOAuthApp",
+                "google-access-token",
+                tokenRes.data.access_token
+              );
+              await keytar.setPassword(
+                "ElectronGoogleOAuthApp",
+                "google-refresh-token",
+                tokenRes.data.refresh_token
+              );
 
-              resolve(tokenRes.data); // This is the real access_token
+              resolve(tokenRes.data);
             } catch (err) {
               reject(err);
             }
@@ -116,3 +158,44 @@ ipcMain.handle(
   }
 );
 
+ipcMain.handle("google-logout", async () => {
+  const accessToken = await keytar.getPassword(
+    "ElectronGoogleOAuthApp",
+    "google-access-token"
+  );
+
+  if (accessToken) {
+    // Revoke token on Google
+    await axios.post(
+      `https://oauth2.googleapis.com/revoke?token=${accessToken}`,
+      null,
+      {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      }
+    );
+  }
+
+  // Delete tokens from Keytar
+  await keytar.deletePassword("ElectronGoogleOAuthApp", "google-access-token");
+  await keytar.deletePassword("ElectronGoogleOAuthApp", "google-refresh-token");
+
+  return true;
+});
+
+ipcMain.handle("is-logged-in", async () => {
+  const refreshToken = await keytar.getPassword(
+    "ElectronGoogleOAuthApp",
+    "google-refresh-token"
+  );
+  return Boolean(refreshToken);
+});
+
+ipcMain.handle("get-access-token", async () => {
+  let accessToken = await getAccessToken();
+
+  if (!accessToken) {
+    accessToken = await refreshAccessToken();
+  }
+
+  return accessToken;
+});

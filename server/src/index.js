@@ -36,6 +36,32 @@ app.get("/auth/google", (req, res) => {
 
   res.json({ authUrl });
 });
+
+app.get("/refresh-token", async (req, res) => {
+  const refresh_token = req.query.refresh_token;
+
+  if (!refresh_token) return res.status(400).send("Missing refresh token");
+
+  try {
+    const params = new URLSearchParams();
+    params.append("client_id", CLIENT_ID);
+    params.append("client_secret", CLIENT_SECRET);
+    params.append("refresh_token", refresh_token);
+    params.append("grant_type", "refresh_token");
+
+    const tokenRes = await axios.post(
+      "https://oauth2.googleapis.com/token",
+      params.toString(),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    );
+
+    res.json(tokenRes.data); // returns new access_token
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(500).json({ error: "Failed to refresh token" });
+  }
+});
+
 app.get("/oauth2callback", async (req, res) => {
   const code = req.query.code;
   const code_verifier = req.query.code_verifier;
